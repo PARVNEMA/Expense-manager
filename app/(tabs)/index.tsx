@@ -1,447 +1,308 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Animated,
-  Modal,
-  TextInput,
-  Alert,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  Trash2,
-  TrendingUp,
-  Calendar,
-  Wallet,
-  Pencil,
-  Moon,
-  Sun,
-} from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useMemo, useRef } from 'react';
+import { View, Text, FlatList, TouchableOpacity, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Header from '@/components/header';
 import { useTheme } from '@/context/ThemeContext';
-import { useExpenses } from '@/context/ExpenseContext';
-import type { Expense } from '@/context/ExpenseContext';
+import { useExpenses, Transaction } from '@/context/ExpenseContext';
+import { getCategoryMeta } from '@/constants/transactionCategories';
+
+const currency = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+});
+
+const monthLabel = new Date().toLocaleDateString('en-US', {
+  month: 'long',
+  year: 'numeric',
+});
 
 export default function Dashboard() {
-  const { expenses, deleteExpense, getTotalExpenses } = useExpenses();
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
+  const { transactions, deleteTransaction, getMonthlySummary, getCategoryTotals, isLoaded } =
+    useExpenses();
 
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editExpense, setEditExpense] = useState<Expense | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [_, setForceUpdate] = useState(0);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(0)).current;
+  const slide = useRef(new Animated.Value(20)).current;
   const isDark = theme === 'dark';
 
-  const colors = useMemo(
+  const palette = useMemo(
     () =>
       isDark
         ? {
             background: '#0b1220',
-            surface: '#111827',
-            surfaceBorder: '#1f2937',
-            textPrimary: '#f8fafc',
-            textSecondary: '#94a3b8',
-            muted: '#64748b',
-            emptyIconBg: '#1e293b',
-            deleteBtnBg: '#3f1d1d',
-            editBtnBg: '#1d2c49',
-            modalOverlay: 'rgba(2, 6, 23, 0.7)',
-            inputBg: '#0f172a',
-            inputBorder: '#334155',
-            inputText: '#f8fafc',
-            placeholder: '#64748b',
-            toggleBg: '#172036',
-            toggleBorder: '#334155',
-            toggleText: '#e2e8f0',
+            card: '#111827',
+            border: '#1f2937',
+            text: '#f8fafc',
+            muted: '#94a3b8',
+            emptyBg: '#172036',
+            incomeBg: '#0b3a31',
+            expenseBg: '#401818',
           }
         : {
             background: '#f8fafc',
-            surface: '#ffffff',
-            surfaceBorder: '#e2e8f0',
-            textPrimary: '#0f172a',
-            textSecondary: '#475569',
+            card: '#ffffff',
+            border: '#e2e8f0',
+            text: '#0f172a',
             muted: '#64748b',
-            emptyIconBg: '#e2e8f0',
-            deleteBtnBg: '#fee2e2',
-            editBtnBg: '#dbeafe',
-            modalOverlay: 'rgba(15, 23, 42, 0.25)',
-            inputBg: '#f8fafc',
-            inputBorder: '#cbd5e1',
-            inputText: '#0f172a',
-            placeholder: '#94a3b8',
-            toggleBg: '#ffffff',
-            toggleBorder: '#cbd5e1',
-            toggleText: '#0f172a',
+            emptyBg: '#f1f5f9',
+            incomeBg: '#d1fae5',
+            expenseBg: '#fee2e2',
           },
     [isDark],
   );
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-  }, [fadeAnim]);
+    Animated.parallel([
+      Animated.timing(fade, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slide, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fade, slide]);
 
-  const handleEdit = (expense: Expense) => {
-    setEditExpense(expense);
-    setEditTitle(expense.title);
-    setEditAmount(expense.amount.toString());
-    setEditModalVisible(true);
-  };
+  const summary = getMonthlySummary();
+  const monthExpensesByCategory = getCategoryTotals('expense');
+  const totalCategoryExpenses = monthExpensesByCategory.reduce(
+    (sum, item) => sum + item.amount,
+    0,
+  );
 
-  const handleEditSave = () => {
-    if (!editExpense) return;
-    if (!editTitle.trim() || !editAmount || parseFloat(editAmount) <= 0) {
-      Alert.alert('Error', 'Please enter valid details');
-      return;
-    }
-
-    editExpense.title = editTitle.trim();
-    editExpense.amount = parseFloat(editAmount);
-    setEditModalVisible(false);
-    setForceUpdate((v) => v + 1);
-  };
-
-  const formatDate = (date: Date) =>
-    new Date(date).toLocaleDateString('en-US', {
+  const formatDate = (date: string) =>
+    new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
     });
 
-  const getCategoryChip = (category: string) => {
-    const map: Record<
-      string,
-      { bgLight: string; textLight: string; bgDark: string; textDark: string }
-    > = {
-      Food: {
-        bgLight: '#ffedd5',
-        textLight: '#c2410c',
-        bgDark: '#3a2611',
-        textDark: '#fdba74',
-      },
-      Transport: {
-        bgLight: '#dbeafe',
-        textLight: '#1d4ed8',
-        bgDark: '#14233e',
-        textDark: '#93c5fd',
-      },
-      Shopping: {
-        bgLight: '#f3e8ff',
-        textLight: '#7e22ce',
-        bgDark: '#331a4d',
-        textDark: '#d8b4fe',
-      },
-      Entertainment: {
-        bgLight: '#fce7f3',
-        textLight: '#be185d',
-        bgDark: '#431b34',
-        textDark: '#f9a8d4',
-      },
-      Bills: {
-        bgLight: '#fee2e2',
-        textLight: '#b91c1c',
-        bgDark: '#441b1b',
-        textDark: '#fca5a5',
-      },
-      Health: {
-        bgLight: '#dcfce7',
-        textLight: '#15803d',
-        bgDark: '#163324',
-        textDark: '#86efac',
-      },
-      Other: {
-        bgLight: '#e2e8f0',
-        textLight: '#334155',
-        bgDark: '#283547',
-        textDark: '#cbd5e1',
-      },
-    };
+  const renderTransaction = ({ item }: { item: Transaction }) => {
+    const meta = getCategoryMeta(item.category);
+    const tone = isDark ? meta.dark : meta.light;
+    const amountPrefix = item.type === 'income' ? '+' : '-';
 
-    const resolved = map[category] ?? map.Other;
-    return isDark
-      ? { backgroundColor: resolved.bgDark, color: resolved.textDark }
-      : { backgroundColor: resolved.bgLight, color: resolved.textLight };
+    return (
+      <View
+        style={{
+          backgroundColor: palette.card,
+          borderColor: palette.border,
+          borderWidth: 1,
+          borderRadius: 16,
+          padding: 14,
+          marginBottom: 10,
+        }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
+          <View style={{ flexDirection: 'row', flex: 1, gap: 10 }}>
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: `${tone}22`,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name={meta.icon} size={18} color={tone} />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: palette.text, fontSize: 16, fontWeight: '700' }} numberOfLines={1}>
+                {item.note}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5, gap: 8 }}>
+                <View
+                  style={{
+                    backgroundColor: `${tone}20`,
+                    borderRadius: 999,
+                    paddingHorizontal: 9,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <Text style={{ color: tone, fontWeight: '700', fontSize: 12 }}>{item.category}</Text>
+                </View>
+                <Text style={{ color: palette.muted, fontSize: 12 }}>{formatDate(item.date)}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text
+              style={{
+                color: item.type === 'income' ? '#10b981' : '#ef4444',
+                fontSize: 16,
+                fontWeight: '800',
+              }}
+            >
+              {amountPrefix}
+              {currency.format(item.amount)}
+            </Text>
+            <TouchableOpacity
+              onPress={() => deleteTransaction(item.id)}
+              style={{
+                marginTop: 8,
+                borderRadius: 10,
+                paddingHorizontal: 8,
+                paddingVertical: 5,
+                backgroundColor: isDark ? '#3f1d1d' : '#fee2e2',
+              }}
+            >
+              <Text style={{ color: isDark ? '#fecaca' : '#b91c1c', fontWeight: '700', fontSize: 12 }}>
+                Delete
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: palette.background }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
-        <View className="px-6 pt-2 pb-4 flex-row justify-between items-center">
-          <View>
-            <Text
-              style={{ color: colors.textPrimary }}
-              className="text-3xl font-bold mb-1"
-            >
-              Expense Tracker
-            </Text>
-            <Text style={{ color: colors.textSecondary }} className="text-base">
-              Track your daily expenses
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={toggleTheme}
-            className="px-4 py-3 rounded-2xl border flex-row items-center"
-            style={{
-              backgroundColor: colors.toggleBg,
-              borderColor: colors.toggleBorder,
-            }}
-          >
-            {isDark ? (
-              <Sun size={16} color={colors.toggleText} strokeWidth={2.5} />
-            ) : (
-              <Moon size={16} color={colors.toggleText} strokeWidth={2.5} />
-            )}
-            <Text
-              style={{ color: colors.toggleText }}
-              className="font-semibold ml-2"
-            >
-              {isDark ? 'Light' : 'Dark'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <Animated.View style={{ flex: 1, opacity: fade, transform: [{ translateY: slide }] }}>
+        <Header title="FinTrack" description="Your personal finance dashboard" />
 
-        <View className="mx-6 mb-6">
+        <View style={{ marginHorizontal: 20, marginBottom: 14 }}>
           <LinearGradient
-            colors={isDark ? ['#0f766e', '#1d4ed8'] : ['#10b981', '#0ea5e9']}
+            colors={isDark ? ['#0f766e', '#2563eb'] : ['#22c55e', '#0ea5e9']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ borderRadius: 24, padding: 20 }}
+            style={{ borderRadius: 22, padding: 18 }}
           >
-            <View className="flex-row items-center mb-2">
-              <TrendingUp size={20} color="#ffffff" strokeWidth={2.5} />
-              <Text className="text-white/80 text-sm ml-2 font-medium">
-                Total Expenses
-              </Text>
-            </View>
-            <Text className="text-white text-4xl font-bold">
-              ₹{getTotalExpenses().toFixed(2)}
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}>{monthLabel}</Text>
+            <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800', marginTop: 2 }}>
+              {currency.format(summary.balance)}
             </Text>
-            <Text className="text-white/80 text-sm mt-1">
-              {expenses.length} transaction{expenses.length !== 1 ? 's' : ''}
-            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.9)' }}>Remaining balance</Text>
           </LinearGradient>
         </View>
 
-        {expenses.length === 0 ? (
-          <View className="flex-1 justify-center items-center px-6">
-            <View
-              className="w-24 h-24 rounded-full items-center justify-center mb-4"
-              style={{ backgroundColor: colors.emptyIconBg }}
-            >
-              <Wallet size={40} color={colors.muted} strokeWidth={2} />
-            </View>
-            <Text
-              style={{ color: colors.textPrimary }}
-              className="text-xl font-semibold mb-2"
-            >
-              No expenses yet
+        <View style={{ marginHorizontal: 20, flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+          <View
+            style={{
+              flex: 1,
+              borderRadius: 14,
+              padding: 12,
+              backgroundColor: palette.incomeBg,
+            }}
+          >
+            <Text style={{ color: '#065f46', fontWeight: '700', fontSize: 12 }}>Income</Text>
+            <Text style={{ color: '#065f46', fontWeight: '800', marginTop: 2 }}>
+              {currency.format(summary.totalIncome)}
             </Text>
-            <Text
-              style={{ color: colors.textSecondary }}
-              className="text-center text-base"
+          </View>
+          <View
+            style={{
+              flex: 1,
+              borderRadius: 14,
+              padding: 12,
+              backgroundColor: palette.expenseBg,
+            }}
+          >
+            <Text style={{ color: '#991b1b', fontWeight: '700', fontSize: 12 }}>Expenses</Text>
+            <Text style={{ color: '#991b1b', fontWeight: '800', marginTop: 2 }}>
+              {currency.format(summary.totalExpenses)}
+            </Text>
+          </View>
+        </View>
+
+        {monthExpensesByCategory.length > 0 ? (
+          <View style={{ marginHorizontal: 20, marginBottom: 12 }}>
+            <Text style={{ color: palette.text, fontWeight: '700', marginBottom: 8 }}>
+              Expense categories this month
+            </Text>
+            {monthExpensesByCategory.slice(0, 4).map((item) => {
+              const meta = getCategoryMeta(item.category);
+              const tone = isDark ? meta.dark : meta.light;
+              const widthPct = totalCategoryExpenses
+                ? Math.max((item.amount / totalCategoryExpenses) * 100, 4)
+                : 0;
+
+              return (
+                <View key={item.category} style={{ marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: palette.muted, fontSize: 12 }}>{item.category}</Text>
+                    <Text style={{ color: palette.muted, fontSize: 12 }}>
+                      {currency.format(item.amount)}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      marginTop: 4,
+                      width: '100%',
+                      height: 8,
+                      borderRadius: 999,
+                      backgroundColor: isDark ? '#1f2937' : '#e2e8f0',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${widthPct}%`,
+                        height: 8,
+                        borderRadius: 999,
+                        backgroundColor: tone,
+                      }}
+                    />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {!isLoaded ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: palette.muted }}>Loading local data...</Text>
+          </View>
+        ) : transactions.length === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 26 }}>
+            <View
+              style={{
+                width: 88,
+                height: 88,
+                borderRadius: 44,
+                backgroundColor: palette.emptyBg,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              Start tracking your expenses by adding your first transaction
+              <MaterialCommunityIcons
+                name="chart-donut-variant"
+                size={36}
+                color={isDark ? '#94a3b8' : '#64748b'}
+              />
+            </View>
+            <Text style={{ color: palette.text, fontSize: 20, fontWeight: '700', marginTop: 14 }}>
+              No transactions yet
+            </Text>
+            <Text style={{ color: palette.muted, textAlign: 'center', marginTop: 6 }}>
+              Add your first income or expense from the Add Transaction tab to unlock monthly summaries.
             </Text>
           </View>
         ) : (
-          <View className="flex-1 px-6">
-            <Text
-              style={{ color: colors.textPrimary }}
-              className="text-lg font-semibold mb-3"
-            >
-              Recent Transactions
+          <View style={{ flex: 1, marginHorizontal: 20 }}>
+            <Text style={{ color: palette.text, fontWeight: '700', marginBottom: 10 }}>
+              Recent transactions
             </Text>
             <FlatList
-              data={expenses}
+              data={transactions}
               keyExtractor={(item) => item.id}
+              renderItem={renderTransaction}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 20 }}
-              renderItem={({ item }) => {
-                const chip = getCategoryChip(item.category);
-                return (
-                  <View
-                    className="rounded-2xl p-4 mb-3 border"
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderColor: colors.surfaceBorder,
-                    }}
-                  >
-                    <View className="flex-row justify-between items-start">
-                      <View className="flex-1 pr-2">
-                        <Text
-                          style={{ color: colors.textPrimary }}
-                          className="text-lg font-semibold mb-1"
-                        >
-                          {item.title}
-                        </Text>
-                        <View className="flex-row items-center mb-2">
-                          <View
-                            className="px-3 py-1 rounded-full"
-                            style={{ backgroundColor: chip.backgroundColor }}
-                          >
-                            <Text
-                              style={{ color: chip.color }}
-                              className="text-xs font-semibold"
-                            >
-                              {item.category}
-                            </Text>
-                          </View>
-                        </View>
-                        <View className="flex-row items-center">
-                          <Calendar
-                            size={14}
-                            color={colors.muted}
-                            strokeWidth={2}
-                          />
-                          <Text
-                            style={{ color: colors.textSecondary }}
-                            className="text-sm ml-1"
-                          >
-                            {formatDate(item.date)}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View className="items-end">
-                        <Text
-                          style={{ color: colors.textPrimary }}
-                          className="text-2xl font-bold mb-2"
-                        >
-                          ₹{item.amount.toFixed(2)}
-                        </Text>
-                        <View className="flex-row" style={{ gap: 8 }}>
-                          <TouchableOpacity
-                            onPress={() => handleEdit(item)}
-                            className="p-2 rounded-lg"
-                            style={{ backgroundColor: colors.editBtnBg }}
-                          >
-                            <Pencil
-                              size={18}
-                              color={isDark ? '#93c5fd' : '#2563eb'}
-                              strokeWidth={2.5}
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() => deleteExpense(item.id)}
-                            className="p-2 rounded-lg"
-                            style={{ backgroundColor: colors.deleteBtnBg }}
-                          >
-                            <Trash2
-                              size={18}
-                              color={isDark ? '#fca5a5' : '#ef4444'}
-                              strokeWidth={2.5}
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                );
-              }}
             />
-
-            <Modal
-              visible={editModalVisible}
-              animationType="slide"
-              transparent
-              onRequestClose={() => setEditModalVisible(false)}
-            >
-              <View
-                className="flex-1 justify-center items-center"
-                style={{ backgroundColor: colors.modalOverlay }}
-              >
-                <View
-                  className="rounded-3xl p-6 w-11/12 border"
-                  style={{
-                    backgroundColor: colors.surface,
-                    borderColor: colors.surfaceBorder,
-                  }}
-                >
-                  <Text
-                    style={{ color: colors.textPrimary }}
-                    className="text-xl font-bold mb-4"
-                  >
-                    Edit Expense
-                  </Text>
-
-                  <Text
-                    style={{ color: colors.textSecondary }}
-                    className="font-semibold mb-2"
-                  >
-                    Title
-                  </Text>
-                  <TextInput
-                    value={editTitle}
-                    onChangeText={setEditTitle}
-                    className="rounded-xl px-4 py-3 text-base border mb-4"
-                    placeholder="Expense Title"
-                    placeholderTextColor={colors.placeholder}
-                    style={{
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
-                      color: colors.inputText,
-                    }}
-                  />
-
-                  <Text
-                    style={{ color: colors.textSecondary }}
-                    className="font-semibold mb-2"
-                  >
-                    Amount
-                  </Text>
-                  <TextInput
-                    value={editAmount}
-                    onChangeText={setEditAmount}
-                    className="rounded-xl px-4 py-3 text-base border mb-6"
-                    placeholder="0.00"
-                    placeholderTextColor={colors.placeholder}
-                    keyboardType="decimal-pad"
-                    style={{
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.inputBorder,
-                      color: colors.inputText,
-                    }}
-                  />
-
-                  <View className="flex-row justify-end" style={{ gap: 8 }}>
-                    <TouchableOpacity
-                      onPress={() => setEditModalVisible(false)}
-                      className="px-5 py-2 rounded-xl"
-                      style={{
-                        backgroundColor: isDark ? '#1f2937' : '#e2e8f0',
-                      }}
-                    >
-                      <Text
-                        style={{ color: colors.textSecondary }}
-                        className="font-semibold"
-                      >
-                        Cancel
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={handleEditSave}
-                      className="px-5 py-2 rounded-xl"
-                      style={{ backgroundColor: '#10b981' }}
-                    >
-                      <Text className="text-white font-semibold">Save</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </Modal>
           </View>
         )}
       </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 }

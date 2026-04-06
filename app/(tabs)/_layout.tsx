@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
-import { Wallet, CirclePlus as PlusCircle } from 'lucide-react-native';
+import { Wallet, CirclePlus as PlusCircle, User2 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 
@@ -29,12 +29,13 @@ export default function TabLayout() {
   );
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? '#000000' : palette.pageBg }}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.pageBg }}>
       <Tabs
         screenOptions={{
           headerShown: false,
+          sceneStyle: {
+            backgroundColor: palette.pageBg,
+          },
           tabBarActiveTintColor: palette.active,
           tabBarInactiveTintColor: palette.inactive,
           tabBarStyle: {
@@ -66,6 +67,15 @@ export default function TabLayout() {
             title: 'Add Expense',
             tabBarIcon: ({ size, color }) => (
               <PlusCircle size={size} color={color} strokeWidth={2.5} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ size, color }) => (
+              <User2 size={size} color={color} strokeWidth={2.5} />
             ),
           }}
         />
