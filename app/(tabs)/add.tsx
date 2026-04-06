@@ -14,6 +14,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { useTheme } from '@/context/ThemeContext';
 import { useExpenses, TransactionType } from '@/context/ExpenseContext';
 import {
@@ -24,6 +27,13 @@ import {
 const CUSTOM_CATEGORY = 'Custom';
 
 const getToday = () => new Date().toISOString().slice(0, 10);
+const parseDate = (value: string) => new Date(`${value}T00:00:00`);
+const formatDate = (value: string) =>
+  parseDate(value).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
 const validateDateString = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -48,6 +58,7 @@ export default function AddTransaction() {
   const [category, setCategory] = useState('');
   const [customCategory, setCustomCategory] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const isDark = theme === 'dark';
   const fade = useRef(new Animated.Value(0)).current;
@@ -100,6 +111,15 @@ export default function AddTransaction() {
   }, [type]);
 
   const categories = [...PRESET_CATEGORIES[type], CUSTOM_CATEGORY];
+
+  const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+
+    if (event.type !== 'set' || !selectedDate) return;
+    setDate(selectedDate.toISOString().slice(0, 10));
+  };
 
   const submit = async () => {
     const parsedAmount = Number(amount);
@@ -379,23 +399,23 @@ export default function AddTransaction() {
               }}
             >
               <Text style={{ color: palette.muted, fontWeight: '600' }}>
-                Date (YYYY-MM-DD)
+                Date
               </Text>
-              <TextInput
-                value={date}
-                onChangeText={setDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={palette.placeholder}
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
                 style={{
                   backgroundColor: palette.inputBg,
                   borderColor: palette.inputBorder,
                   borderWidth: 1,
                   borderRadius: 12,
-                  color: palette.text,
                   paddingHorizontal: 14,
                   paddingVertical: 11,
                 }}
-              />
+              >
+                <Text style={{ color: palette.text, fontWeight: '600' }}>
+                  {formatDate(date)}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setDate(getToday())}
                 style={{
@@ -412,6 +432,43 @@ export default function AddTransaction() {
                   Use today
                 </Text>
               </TouchableOpacity>
+              {showDatePicker ? (
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    borderColor: palette.inputBorder,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <DateTimePicker
+                    value={parseDate(date)}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                    onChange={onDateChange}
+                    maximumDate={new Date()}
+                  />
+                  {Platform.OS === 'ios' ? (
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        alignSelf: 'flex-end',
+                        margin: 10,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 10,
+                        backgroundColor: palette.inputBg,
+                        borderWidth: 1,
+                        borderColor: palette.inputBorder,
+                      }}
+                    >
+                      <Text style={{ color: palette.text, fontWeight: '700' }}>
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
 
             <View
