@@ -3,6 +3,9 @@ import { View, Text, FlatList, TouchableOpacity, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Header from '@/components/header';
 import { useTheme } from '@/context/ThemeContext';
@@ -11,11 +14,23 @@ import { getCategoryMeta } from '@/constants/transactionCategories';
 
 const currency = new Intl.NumberFormat('en-US', {
   style: 'currency',
-  currency: 'USD',
+  currency: 'INR',
   minimumFractionDigits: 2,
 });
 
-type SummaryView = 'monthly' | 'weekly';
+const formatDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getToday = () => formatDateKey(new Date());
+
+const getMonthStart = () => {
+  const now = new Date();
+  return formatDateKey(new Date(now.getFullYear(), now.getMonth(), 1));
+};
 
 interface PieSlice {
   label: string;
@@ -57,17 +72,15 @@ const buildSlicePath = (
 
 export default function Dashboard() {
   const { theme } = useTheme();
-  const {
-    transactions,
-    deleteTransaction,
-    getMonthlySummary,
-    getCategoryTotals,
-    isLoaded,
-  } = useExpenses();
+  const { transactions, deleteTransaction, isLoaded } = useExpenses();
 
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
-  const [summaryView, setSummaryView] = useState<SummaryView>('monthly');
+  const [startDate, setStartDate] = useState(getMonthStart());
+  const [endDate, setEndDate] = useState(getToday());
+  const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(
+    null,
+  );
   const isDark = theme === 'dark';
 
   const palette = useMemo(
@@ -111,44 +124,25 @@ export default function Dashboard() {
     ]).start();
   }, [fade, slide]);
 
+  const startDateObj = useMemo(
+    () => new Date(`${startDate}T00:00:00`),
+    [startDate],
+  );
+  const endDateObj = useMemo(() => new Date(`${endDate}T23:59:59`), [endDate]);
+
   const periodMeta = useMemo(() => {
-    const now = new Date();
-    const periodStart = new Date(now);
-    const periodEnd = new Date(now);
+    const label = `${startDateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })} - ${endDateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })}`;
 
-    if (summaryView === 'monthly') {
-      periodStart.setDate(1);
-      periodStart.setHours(0, 0, 0, 0);
-
-      periodEnd.setMonth(periodEnd.getMonth() + 1, 0);
-      periodEnd.setHours(23, 59, 59, 999);
-    } else {
-      const day = now.getDay();
-      const offsetToMonday = day === 0 ? -6 : 1 - day;
-
-      periodStart.setDate(now.getDate() + offsetToMonday);
-      periodStart.setHours(0, 0, 0, 0);
-
-      periodEnd.setDate(periodStart.getDate() + 6);
-      periodEnd.setHours(23, 59, 59, 999);
-    }
-
-    const label =
-      summaryView === 'monthly'
-        ? now.toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-          })
-        : `${periodStart.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-          })} - ${periodEnd.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-          })}`;
-
-    return { periodStart, periodEnd, label };
-  }, [summaryView]);
+    return { periodStart: startDateObj, periodEnd: endDateObj, label };
+  }, [endDateObj, startDateObj]);
 
   const periodTransactions = useMemo(
     () =>
@@ -238,6 +232,28 @@ export default function Dashboard() {
       day: 'numeric',
       year: 'numeric',
     });
+
+  const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (event.type === 'dismissed' || !selectedDate || !pickerTarget) {
+      setPickerTarget(null);
+      return;
+    }
+
+    const selected = formatDateKey(selectedDate);
+    if (pickerTarget === 'start') {
+      setStartDate(selected);
+      if (selected > endDate) {
+        setEndDate(selected);
+      }
+    } else {
+      setEndDate(selected);
+      if (selected < startDate) {
+        setStartDate(selected);
+      }
+    }
+
+    setPickerTarget(null);
+  };
 
   const renderTransaction = ({ item }: { item: Transaction }) => {
     const meta = getCategoryMeta(item.category);
@@ -334,72 +350,80 @@ export default function Dashboard() {
         <View style={{ marginHorizontal: 20, marginBottom: 14 }}>
           <View
             style={{
-              alignSelf: 'flex-start',
               flexDirection: 'row',
+              justifyContent: 'space-between',
+              gap: 10,
               backgroundColor: palette.card,
               borderWidth: 1,
               borderColor: palette.border,
-              borderRadius: 999,
-              padding: 3,
+              borderRadius: 14,
+              padding: 8,
               marginBottom: 10,
             }}
           >
             <TouchableOpacity
-              onPress={() => setSummaryView('monthly')}
+              onPress={() => setPickerTarget('start')}
               style={{
-                borderRadius: 999,
-                paddingVertical: 7,
+                flex: 1,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: palette.border,
+                paddingVertical: 9,
                 paddingHorizontal: 14,
-                backgroundColor:
-                  summaryView === 'monthly'
-                    ? isDark
-                      ? '#e5e7eb'
-                      : '#111827'
-                    : 'transparent',
+                backgroundColor: palette.background,
               }}
             >
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
+                  color: palette.muted,
                   fontWeight: '700',
-                  color:
-                    summaryView === 'monthly'
-                      ? isDark
-                        ? '#111827'
-                        : '#f8fafc'
-                      : palette.muted,
                 }}
               >
-                Monthly
+                START DATE
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: palette.text,
+                  marginTop: 2,
+                }}
+              >
+                {formatDate(startDate)}
               </Text>
             </TouchableOpacity>
+
             <TouchableOpacity
-              onPress={() => setSummaryView('weekly')}
+              onPress={() => setPickerTarget('end')}
               style={{
-                borderRadius: 999,
-                paddingVertical: 7,
+                flex: 1,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: palette.border,
+                paddingVertical: 9,
                 paddingHorizontal: 14,
-                backgroundColor:
-                  summaryView === 'weekly'
-                    ? isDark
-                      ? '#e5e7eb'
-                      : '#111827'
-                    : 'transparent',
+                backgroundColor: palette.background,
               }}
             >
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
+                  color: palette.muted,
                   fontWeight: '700',
-                  color:
-                    summaryView === 'weekly'
-                      ? isDark
-                        ? '#111827'
-                        : '#f8fafc'
-                      : palette.muted,
                 }}
               >
-                Weekly
+                END DATE
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: palette.text,
+                  marginTop: 2,
+                }}
+              >
+                {formatDate(endDate)}
               </Text>
             </TouchableOpacity>
           </View>
@@ -426,7 +450,7 @@ export default function Dashboard() {
               {currency.format(summary.balance)}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.9)' }}>
-              {summaryView === 'monthly' ? 'Monthly balance' : 'Weekly balance'}
+              Balance for selected date range
             </Text>
           </LinearGradient>
         </View>
@@ -617,8 +641,7 @@ export default function Dashboard() {
                 marginTop: 6,
               }}
             >
-              No records found for this {summaryView} view. Add transactions to
-              see summaries.
+              No records found in this date range. Try changing start/end dates.
             </Text>
           </View>
         ) : (
@@ -630,9 +653,7 @@ export default function Dashboard() {
                 marginBottom: 10,
               }}
             >
-              {summaryView === 'monthly'
-                ? 'This month transactions'
-                : 'This week transactions'}
+              Transactions in selected range
             </Text>
             <FlatList
               data={periodTransactions}
@@ -645,6 +666,18 @@ export default function Dashboard() {
           </View>
         )}
       </Animated.ScrollView>
+
+      {pickerTarget ? (
+        <DateTimePicker
+          value={pickerTarget === 'start' ? startDateObj : endDateObj}
+          mode="date"
+          display="default"
+          themeVariant="light"
+          onChange={onDateChange}
+          maximumDate={pickerTarget === 'start' ? endDateObj : undefined}
+          minimumDate={pickerTarget === 'end' ? startDateObj : undefined}
+        />
+      ) : null}
     </View>
   );
 }

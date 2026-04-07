@@ -23,6 +23,7 @@ import {
   PRESET_CATEGORIES,
   getCategoryMeta,
 } from '@/constants/transactionCategories';
+import Header from '@/components/header';
 
 const CUSTOM_CATEGORY = 'Custom';
 
@@ -170,6 +171,7 @@ export default function AddTransaction() {
   return (
     <View style={{ flex: 1, backgroundColor: palette.background }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Header />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -305,7 +307,7 @@ export default function AddTransaction() {
                   fontSize: 24,
                   fontWeight: '700',
                   paddingHorizontal: 14,
-                  paddingVertical: 12,
+                  paddingVertical: 6,
                 }}
               />
             </View>

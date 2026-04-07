@@ -153,7 +153,7 @@ const Login = () => {
               className="text-[16px] mt-1 text-center"
               style={{ color: palette.muted }}
             >
-              Send money globally with the real exchange rate
+              Manage your Income and Expenses Easily
             </Text>
           </View>
 

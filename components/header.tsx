@@ -8,7 +8,10 @@ interface HeaderProps {
   description?: string;
 }
 
-const Header = ({ title: _title, description: _description = '' }: HeaderProps) => {
+const Header = ({
+  title: _title,
+  description: _description = '',
+}: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -82,7 +85,7 @@ const Header = ({ title: _title, description: _description = '' }: HeaderProps) 
           </Text>
         </View>
         <Text
-          className="text-4xl font-bold ml-3"
+          className="text-3xl font-bold ml-3"
           style={{ color: colors.brandText }}
         >
           PayU

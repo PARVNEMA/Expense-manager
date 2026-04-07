@@ -36,6 +36,7 @@ export default function TabLayout() {
           sceneStyle: {
             backgroundColor: palette.pageBg,
           },
+          animation: 'shift',
           tabBarActiveTintColor: palette.active,
           tabBarInactiveTintColor: palette.inactive,
           tabBarStyle: {
