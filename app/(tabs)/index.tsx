@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,10 +15,7 @@ const currency = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
 });
 
-const monthLabel = new Date().toLocaleDateString('en-US', {
-  month: 'long',
-  year: 'numeric',
-});
+type SummaryView = 'monthly' | 'weekly';
 
 interface PieSlice {
   label: string;
@@ -70,6 +67,7 @@ export default function Dashboard() {
 
   const fade = useRef(new Animated.Value(0)).current;
   const slide = useRef(new Animated.Value(20)).current;
+  const [summaryView, setSummaryView] = useState<SummaryView>('monthly');
   const isDark = theme === 'dark';
 
   const palette = useMemo(
@@ -92,8 +90,8 @@ export default function Dashboard() {
             text: '#0f172a',
             muted: '#64748b',
             emptyBg: '#f1f5f9',
-            incomeBg: '#d1fae5',
-            expenseBg: '#fee2e2',
+            incomeBg: '#123d35',
+            expenseBg: '#BD1313',
           },
     [isDark],
   );
@@ -113,10 +111,103 @@ export default function Dashboard() {
     ]).start();
   }, [fade, slide]);
 
-  const summary = getMonthlySummary();
-  const monthExpensesByCategory = getCategoryTotals('expense');
+  const periodMeta = useMemo(() => {
+    const now = new Date();
+    const periodStart = new Date(now);
+    const periodEnd = new Date(now);
+
+    if (summaryView === 'monthly') {
+      periodStart.setDate(1);
+      periodStart.setHours(0, 0, 0, 0);
+
+      periodEnd.setMonth(periodEnd.getMonth() + 1, 0);
+      periodEnd.setHours(23, 59, 59, 999);
+    } else {
+      const day = now.getDay();
+      const offsetToMonday = day === 0 ? -6 : 1 - day;
+
+      periodStart.setDate(now.getDate() + offsetToMonday);
+      periodStart.setHours(0, 0, 0, 0);
+
+      periodEnd.setDate(periodStart.getDate() + 6);
+      periodEnd.setHours(23, 59, 59, 999);
+    }
+
+    const label =
+      summaryView === 'monthly'
+        ? now.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          })
+        : `${periodStart.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          })} - ${periodEnd.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          })}`;
+
+    return { periodStart, periodEnd, label };
+  }, [summaryView]);
+
+  const periodTransactions = useMemo(
+    () =>
+      transactions.filter((entry) => {
+        const txDate = new Date(`${entry.date}T00:00:00`);
+        return (
+          txDate >= periodMeta.periodStart && txDate <= periodMeta.periodEnd
+        );
+      }),
+    [periodMeta.periodEnd, periodMeta.periodStart, transactions],
+  );
+
+  const summary = useMemo(
+    () =>
+      periodTransactions.reduce(
+        (acc, entry) => {
+          if (entry.type === 'income') {
+            acc.totalIncome += entry.amount;
+          } else {
+            acc.totalExpenses += entry.amount;
+          }
+          acc.balance = acc.totalIncome - acc.totalExpenses;
+          return acc;
+        },
+        { totalIncome: 0, totalExpenses: 0, balance: 0 },
+      ),
+    [periodTransactions],
+  );
+
+  const periodExpensesByCategory = useMemo(() => {
+    const totals = new Map<
+      string,
+      { category: string; amount: number; count: number }
+    >();
+
+    periodTransactions
+      .filter((entry) => entry.type === 'expense')
+      .forEach((entry) => {
+        const current = totals.get(entry.category);
+        if (!current) {
+          totals.set(entry.category, {
+            category: entry.category,
+            amount: entry.amount,
+            count: 1,
+          });
+          return;
+        }
+        totals.set(entry.category, {
+          category: entry.category,
+          amount: current.amount + entry.amount,
+          count: current.count + 1,
+        });
+      });
+
+    return [...totals.values()].sort((a, b) => b.amount - a.amount);
+  }, [periodTransactions]);
+
   const pieSlices = useMemo<PieSlice[]>(() => {
-    const expenseSlices = monthExpensesByCategory
+    const expenseSlices = periodExpensesByCategory
       .filter((entry) => entry.amount > 0)
       .map((entry) => {
         const meta = getCategoryMeta(entry.category);
@@ -137,7 +228,7 @@ export default function Dashboard() {
     }
 
     return expenseSlices;
-  }, [monthExpensesByCategory, summary.balance, isDark]);
+  }, [periodExpensesByCategory, summary.balance, isDark]);
 
   const totalPieValue = pieSlices.reduce((sum, slice) => sum + slice.value, 0);
 
@@ -241,6 +332,78 @@ export default function Dashboard() {
         />
 
         <View style={{ marginHorizontal: 20, marginBottom: 14 }}>
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              flexDirection: 'row',
+              backgroundColor: palette.card,
+              borderWidth: 1,
+              borderColor: palette.border,
+              borderRadius: 999,
+              padding: 3,
+              marginBottom: 10,
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setSummaryView('monthly')}
+              style={{
+                borderRadius: 999,
+                paddingVertical: 7,
+                paddingHorizontal: 14,
+                backgroundColor:
+                  summaryView === 'monthly'
+                    ? isDark
+                      ? '#e5e7eb'
+                      : '#111827'
+                    : 'transparent',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '700',
+                  color:
+                    summaryView === 'monthly'
+                      ? isDark
+                        ? '#111827'
+                        : '#f8fafc'
+                      : palette.muted,
+                }}
+              >
+                Monthly
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setSummaryView('weekly')}
+              style={{
+                borderRadius: 999,
+                paddingVertical: 7,
+                paddingHorizontal: 14,
+                backgroundColor:
+                  summaryView === 'weekly'
+                    ? isDark
+                      ? '#e5e7eb'
+                      : '#111827'
+                    : 'transparent',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '700',
+                  color:
+                    summaryView === 'weekly'
+                      ? isDark
+                        ? '#111827'
+                        : '#f8fafc'
+                      : palette.muted,
+                }}
+              >
+                Weekly
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <LinearGradient
             colors={isDark ? ['#0f766e', '#2563eb'] : ['#22c55e', '#0ea5e9']}
             start={{ x: 0, y: 0 }}
@@ -250,7 +413,7 @@ export default function Dashboard() {
             <Text
               style={{ color: 'rgba(255,255,255,0.85)', fontWeight: '600' }}
             >
-              {monthLabel}
+              {periodMeta.label}
             </Text>
             <Text
               style={{
@@ -263,7 +426,7 @@ export default function Dashboard() {
               {currency.format(summary.balance)}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.9)' }}>
-              Remaining balance
+              {summaryView === 'monthly' ? 'Monthly balance' : 'Weekly balance'}
             </Text>
           </LinearGradient>
         </View>
@@ -412,7 +575,7 @@ export default function Dashboard() {
           >
             <Text style={{ color: palette.muted }}>Loading local data...</Text>
           </View>
-        ) : transactions.length === 0 ? (
+        ) : periodTransactions.length === 0 ? (
           <View
             style={{
               flex: 1,
@@ -454,8 +617,8 @@ export default function Dashboard() {
                 marginTop: 6,
               }}
             >
-              Add your first income or expense from the Add Transaction tab to
-              unlock monthly summaries.
+              No records found for this {summaryView} view. Add transactions to
+              see summaries.
             </Text>
           </View>
         ) : (
@@ -467,10 +630,12 @@ export default function Dashboard() {
                 marginBottom: 10,
               }}
             >
-              Recent transactions
+              {summaryView === 'monthly'
+                ? 'This month transactions'
+                : 'This week transactions'}
             </Text>
             <FlatList
-              data={transactions}
+              data={periodTransactions}
               keyExtractor={(item) => item.id}
               renderItem={renderTransaction}
               showsVerticalScrollIndicator={false}
