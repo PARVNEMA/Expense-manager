@@ -68,7 +68,7 @@ export default function AddTransaction() {
     () =>
       isDark
         ? {
-            background: '#0b1220',
+            background: '#0a0d14',
             card: '#111827',
             border: '#1f2937',
             text: '#f8fafc',
@@ -416,22 +416,7 @@ export default function AddTransaction() {
                   {formatDate(date)}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setDate(getToday())}
-                style={{
-                  alignSelf: 'flex-start',
-                  borderRadius: 10,
-                  backgroundColor: palette.inputBg,
-                  borderColor: palette.inputBorder,
-                  borderWidth: 1,
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                }}
-              >
-                <Text style={{ color: palette.muted, fontWeight: '600' }}>
-                  Use today
-                </Text>
-              </TouchableOpacity>
+
               {showDatePicker ? (
                 <View
                   style={{

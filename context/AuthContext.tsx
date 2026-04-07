@@ -22,6 +22,11 @@ interface AuthContextType {
   isLoaded: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (fullName: string, email: string, password: string) => Promise<void>;
+  updateProfile: (payload: {
+    fullName: string;
+    email: string;
+    password?: string;
+  }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -186,6 +191,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, [database, setSession]);
 
+  const updateProfile = useCallback(
+    async (payload: { fullName: string; email: string; password?: string }) => {
+      if (!database || !user) return;
+
+      const normalizedName = payload.fullName.trim();
+      const normalizedEmail = payload.email.trim().toLowerCase();
+      const normalizedPassword = payload.password?.trim();
+
+      if (!normalizedName || !normalizedEmail) {
+        throw new Error('Name and email are required.');
+      }
+
+      const existingUser = await database.getFirstAsync<{ id: string }>(
+        'SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1',
+        [normalizedEmail, user.id],
+      );
+
+      if (existingUser) {
+        throw new Error('Another account already uses this email.');
+      }
+
+      if (normalizedPassword) {
+        await database.runAsync(
+          `UPDATE users
+           SET full_name = ?, email = ?, password = ?
+           WHERE id = ?`,
+          [normalizedName, normalizedEmail, normalizedPassword, user.id],
+        );
+      } else {
+        await database.runAsync(
+          `UPDATE users
+           SET full_name = ?, email = ?
+           WHERE id = ?`,
+          [normalizedName, normalizedEmail, user.id],
+        );
+      }
+
+      await getCurrentUser(database);
+    },
+    [database, getCurrentUser, user],
+  );
+
   const value = useMemo(
     () => ({
       user,
@@ -193,9 +240,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoaded,
       signIn,
       signUp,
+      updateProfile,
       signOut,
     }),
-    [isLoaded, signIn, signOut, signUp, user],
+    [isLoaded, signIn, signOut, signUp, updateProfile, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

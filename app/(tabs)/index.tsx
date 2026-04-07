@@ -76,14 +76,14 @@ export default function Dashboard() {
     () =>
       isDark
         ? {
-            background: '#0b1220',
+            background: '#0a0d14',
             card: '#111827',
             border: '#1f2937',
             text: '#f8fafc',
             muted: '#94a3b8',
             emptyBg: '#172036',
-            incomeBg: '#0b3a31',
-            expenseBg: '#401818',
+            incomeBg: '#123d35',
+            expenseBg: '#3b1c1c',
           }
         : {
             background: '#f8fafc',
@@ -155,98 +155,69 @@ export default function Dashboard() {
 
     return (
       <View
+        className="rounded-2xl p-3.5 mb-2.5 border"
         style={{
           backgroundColor: palette.card,
           borderColor: palette.border,
-          borderWidth: 1,
-          borderRadius: 16,
-          padding: 14,
-          marginBottom: 10,
         }}
       >
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            gap: 10,
-          }}
-        >
-          <View style={{ flexDirection: 'row', flex: 1, gap: 10 }}>
+        <View className="flex-row justify-between gap-2.5">
+          <View className="flex-row flex-1 gap-2.5">
             <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: `${tone}22`,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              className="w-9 h-9 rounded-full items-center justify-center"
+              style={{ backgroundColor: `${tone}22` }}
             >
               <MaterialCommunityIcons name={meta.icon} size={18} color={tone} />
             </View>
 
-            <View style={{ flex: 1 }}>
+            <View className="flex-1">
               <Text
-                style={{ color: palette.text, fontSize: 16, fontWeight: '700' }}
+                className="text-base font-bold"
+                style={{ color: palette.text }}
                 numberOfLines={1}
               >
                 {item.note}
               </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginTop: 5,
-                  gap: 8,
-                }}
-              >
+
+              <View className="flex-row items-center mt-1.5 gap-2">
                 <View
-                  style={{
-                    backgroundColor: `${tone}20`,
-                    borderRadius: 999,
-                    paddingHorizontal: 9,
-                    paddingVertical: 4,
-                  }}
+                  className="rounded-full px-2 py-1"
+                  style={{ backgroundColor: `${tone}20` }}
                 >
-                  <Text
-                    style={{ color: tone, fontWeight: '700', fontSize: 12 }}
-                  >
+                  <Text className="text-xs font-bold" style={{ color: tone }}>
                     {item.category}
                   </Text>
                 </View>
-                <Text style={{ color: palette.muted, fontSize: 12 }}>
+
+                <Text className="text-xs" style={{ color: palette.muted }}>
                   {formatDate(item.date)}
                 </Text>
               </View>
             </View>
           </View>
 
-          <View style={{ alignItems: 'flex-end' }}>
+          <View className="items-end">
             <Text
+              className="text-base font-extrabold"
               style={{
                 color: item.type === 'income' ? '#10b981' : '#ef4444',
-                fontSize: 16,
-                fontWeight: '800',
               }}
             >
               {amountPrefix}
               {currency.format(item.amount)}
             </Text>
+
             <TouchableOpacity
               onPress={() => deleteTransaction(item.id)}
+              className="mt-2 rounded-lg px-2 py-1"
               style={{
-                marginTop: 8,
-                borderRadius: 10,
-                paddingHorizontal: 8,
-                paddingVertical: 5,
                 backgroundColor: isDark ? '#3f1d1d' : '#fee2e2',
               }}
             >
               <Text
+                className="text-xs font-bold"
                 style={{
                   color: isDark ? '#fecaca' : '#b91c1c',
-                  fontWeight: '700',
-                  fontSize: 12,
                 }}
               >
                 Delete
@@ -313,10 +284,10 @@ export default function Dashboard() {
               backgroundColor: palette.incomeBg,
             }}
           >
-            <Text style={{ color: '#065f46', fontWeight: '700', fontSize: 12 }}>
+            <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>
               Income
             </Text>
-            <Text style={{ color: '#065f46', fontWeight: '800', marginTop: 2 }}>
+            <Text style={{ color: 'white', fontWeight: '800', marginTop: 2 }}>
               {currency.format(summary.totalIncome)}
             </Text>
           </View>
@@ -328,10 +299,10 @@ export default function Dashboard() {
               backgroundColor: palette.expenseBg,
             }}
           >
-            <Text style={{ color: '#991b1b', fontWeight: '700', fontSize: 12 }}>
+            <Text style={{ color: 'white', fontWeight: '700', fontSize: 12 }}>
               Expenses
             </Text>
-            <Text style={{ color: '#991b1b', fontWeight: '800', marginTop: 2 }}>
+            <Text style={{ color: 'white', fontWeight: '800', marginTop: 2 }}>
               {currency.format(summary.totalExpenses)}
             </Text>
           </View>
