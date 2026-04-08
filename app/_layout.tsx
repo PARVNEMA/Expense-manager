@@ -5,7 +5,9 @@ import { ExpenseProvider } from '@/context/ExpenseContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import '../global.css';
-
+import { useState } from 'react';
+import * as Updates from 'expo-updates';
+import UpdateModal from '@/components/updateModal';
 function RootNavigator() {
   const { isAuthenticated, isLoaded } = useAuth();
 
@@ -28,13 +30,36 @@ function RootNavigator() {
 
 export default function RootLayout() {
   useFrameworkReady();
+  const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
+  const [isDownloadingUpdate, setIsDownloadingUpdate] = useState(false);
 
+  const handleDownloadUpdate = async () => {
+    setIsDownloadingUpdate(true);
+    try {
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch (error) {
+      console.error(`Error downloading or reloading update: ${error}`);
+      setIsDownloadingUpdate(false);
+      setIsUpdateModalVisible(false);
+    }
+  };
+
+  const handleCancelUpdate = () => {
+    setIsUpdateModalVisible(false);
+  };
   return (
     <ThemeProvider>
       <AuthProvider>
         <ExpenseProvider>
           <RootNavigator />
           <StatusBar style="dark" />
+          <UpdateModal
+            visible={isUpdateModalVisible}
+            onDownload={handleDownloadUpdate}
+            onCancel={handleCancelUpdate}
+            isDownloading={isDownloadingUpdate}
+          />
         </ExpenseProvider>
       </AuthProvider>
     </ThemeProvider>

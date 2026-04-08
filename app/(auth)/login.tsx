@@ -135,7 +135,7 @@ const Login = () => {
               style={{ backgroundColor: palette.logoBg }}
             >
               <Text
-                className="text-[36px] font-extrabold"
+                className="text-[30px] font-extrabold"
                 style={{ color: palette.logoText }}
               >
                 P
@@ -143,7 +143,7 @@ const Login = () => {
             </View>
 
             <Text
-              className="text-[38px] font-extrabold"
+              className="text-[30px] font-extrabold"
               style={{ color: palette.text }}
             >
               PayU

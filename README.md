@@ -1,33 +1,59 @@
-# Expense Manager
+# Expense Tracker
 
-A clean, modern **personal expense tracker** mobile application to help you monitor your spending, manage budgets, categorize transactions, and visualize your financial habits.
+A React Native + Expo expense tracking app with local authentication, transaction logging, date-range analytics, and profile management.
 
-https://github.com/user-attachments/assets/fb185726-d3f9-411f-bc87-29abb981827e
+## Setup Instructions
 
-## Screenshots
+### Prerequisites
 
-<p align="center">
-  <img width="32%" src="https://github.com/user-attachments/assets/a2a3e2f0-1c2d-46f2-aa0b-1bfe00fb2b79" alt="Home Dashboard - Balance Overview" />
-  <img width="32%" src="https://github.com/user-attachments/assets/b018c20a-e345-4f55-9973-42ee6ee9ed01" alt="Add New Expense Screen" />
-</p>
+- Node.js 18+
+- npm 9+
+- Expo CLI (optional, `npx expo` is enough)
+- Android Studio emulator or Expo Go on a real device
 
-<p align="center">
-  <img width="32%" src="https://github.com/user-attachments/assets/7307b38f-b1a4-4164-836b-2a8b8f32759f" alt="Statistics & Charts" />
-  <img width="32%" src="https://github.com/user-attachments/assets/2b651223-d77c-4195-8980-c7c1c8968f5b" alt="Category Breakdown" />
-  <img width="32%" src="https://github.com/user-attachments/assets/bb948998-18ac-476b-be35-e101bd4a6ef8" alt="Recent Transactions" />
-</p>
+### Installation
 
+```bash
+npm install
+```
 
+### Run the app
 
+```bash
+npm run dev
+```
 
-## Features
+Then choose a target from the Expo terminal:
 
-- **Dashboard** – Quick overview of total balance, income, expenses, and savings
-- **Transaction Management** – Add, edit, delete income & expense records
-- **Categories** – Predefined & custom expense/income categories
-- **Simple & Clean UI** – Material Design / modern mobile look
+- `a` for Android emulator
+- `w` for web
+- Scan QR with Expo Go for physical device testing
 
-## Tech Stack
+## Feature List
 
-- **Platform**:React Native
-- **library**:Nativewind
+- Sign up and sign in flow with local SQLite-backed auth
+- Light/dark theme toggle
+- Add income and expense transactions
+- Preset and custom categories
+- Date picker based transaction entry
+- Dashboard with date-range filtering
+- Income, expense, and balance summary cards
+- Expense breakdown chart by category
+- Transaction list with delete action
+- Profile screen with editable name/email/password and sign out
+
+## Screenshots of App Screens
+
+![Login Screen](image.png)
+![SignUp Screen](image-1.png)
+![Signup Screen White](image-2.png)
+![SignIn Screen White](image-3.png)
+![Dashboard-1](image-4.png)
+![DashBoard White Screen](image-6.png)
+![Dashboard Transactions](image-5.png)
+![Dashboard Transactions White](image-7.png)
+![Add Expense](image-8.png)
+![Add Expense 2](image-9.png)
+![Add Income](image-10.png)
+![Profile Screen](image-11.png)
+![Profile Update ](image-12.png)
